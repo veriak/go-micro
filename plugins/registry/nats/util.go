@@ -38,20 +38,30 @@ func cp(current []*registry.Service) []*registry.Service {
 }
 
 func addNodes(old, neu []*registry.Node) []*registry.Node {
-	for _, n := range neu {
-		var seen bool
-		for i, o := range old {
+	nodes := make([]*registry.Node, len(neu))
+
+	for i, n := range neu {
+		node := *n
+		nodes[i] = &node
+	}
+
+	for _, o := range old {
+		var exists bool
+
+		for _, n := range nodes {
 			if o.Id == n.Id {
-				seen = true
-				old[i] = n
+				exists = true
 				break
 			}
 		}
-		if !seen {
-			old = append(old, n)
+
+		if !exists {
+			node := *o
+			nodes = append(nodes, &node)
 		}
 	}
-	return old
+
+	return nodes
 }
 
 func addServices(old, neu []*registry.Service) []*registry.Service {

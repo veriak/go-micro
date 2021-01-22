@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/asim/go-micro/v3/cmd"
+	//"github.com/asim/go-micro/v3/cmd"
 	"github.com/asim/go-micro/v3/registry"
 	"github.com/nats-io/nats.go"
 )
 
-type natsRegistry struct {
+type NatsRegistry struct {
 	addrs      []string
 	opts       registry.Options
 	nopts      nats.Options
@@ -32,10 +32,10 @@ var (
 )
 
 func init() {
-	cmd.DefaultRegistries["nats"] = NewRegistry
+	//cmd.DefaultRegistries["nats"] = NewRegistry
 }
 
-func configure(n *natsRegistry, opts ...registry.Option) error {
+func configure(n *NatsRegistry, opts ...registry.Option) error {
 	for _, o := range opts {
 		o(&n.opts)
 	}
@@ -98,7 +98,7 @@ func setAddrs(addrs []string) []string {
 	return cAddrs
 }
 
-func (n *natsRegistry) newConn() (*nats.Conn, error) {
+func (n *NatsRegistry) newConn() (*nats.Conn, error) {
 	opts := n.nopts
 	opts.Servers = n.addrs
 	opts.Secure = n.opts.Secure
@@ -112,7 +112,7 @@ func (n *natsRegistry) newConn() (*nats.Conn, error) {
 	return opts.Connect()
 }
 
-func (n *natsRegistry) getConn() (*nats.Conn, error) {
+func (n *NatsRegistry) getConn() (*nats.Conn, error) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -129,7 +129,7 @@ func (n *natsRegistry) getConn() (*nats.Conn, error) {
 	return n.conn, nil
 }
 
-func (n *natsRegistry) register(s *registry.Service) error {
+func (n *NatsRegistry) register(s *registry.Service) error {
 	conn, err := n.getConn()
 	if err != nil {
 		return err
@@ -201,7 +201,7 @@ func (n *natsRegistry) register(s *registry.Service) error {
 	return nil
 }
 
-func (n *natsRegistry) deregister(s *registry.Service) error {
+func (n *NatsRegistry) deregister(s *registry.Service) error {
 	n.Lock()
 	defer n.Unlock()
 
@@ -224,7 +224,7 @@ func (n *natsRegistry) deregister(s *registry.Service) error {
 	return nil
 }
 
-func (n *natsRegistry) query(s string, quorum int) ([]*registry.Service, error) {
+func (n *NatsRegistry) query(s string, quorum int) ([]*registry.Service, error) {
 	conn, err := n.getConn()
 	if err != nil {
 		return nil, err
@@ -304,15 +304,15 @@ loop:
 	return services, nil
 }
 
-func (n *natsRegistry) Init(opts ...registry.Option) error {
+func (n *NatsRegistry) Init(opts ...registry.Option) error {
 	return configure(n, opts...)
 }
 
-func (n *natsRegistry) Options() registry.Options {
+func (n *NatsRegistry) Options() registry.Options {
 	return n.opts
 }
 
-func (n *natsRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
+func (n *NatsRegistry) Register(s *registry.Service, opts ...registry.RegisterOption) error {
 	if err := n.register(s); err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (n *natsRegistry) Register(s *registry.Service, opts ...registry.RegisterOp
 	return conn.Publish(n.watchTopic, b)
 }
 
-func (n *natsRegistry) Deregister(s *registry.Service, opts ...registry.DeregisterOption) error {
+func (n *NatsRegistry) Deregister(s *registry.Service, opts ...registry.DeregisterOption) error {
 	if err := n.deregister(s); err != nil {
 		return err
 	}
@@ -347,7 +347,7 @@ func (n *natsRegistry) Deregister(s *registry.Service, opts ...registry.Deregist
 	return conn.Publish(n.watchTopic, b)
 }
 
-func (n *natsRegistry) GetService(s string, opts ...registry.GetOption) ([]*registry.Service, error) {
+func (n *NatsRegistry) GetService(s string, opts ...registry.GetOption) ([]*registry.Service, error) {
 	services, err := n.query(s, getQuorum(n.opts))
 	if err != nil {
 		return nil, err
@@ -355,7 +355,7 @@ func (n *natsRegistry) GetService(s string, opts ...registry.GetOption) ([]*regi
 	return services, nil
 }
 
-func (n *natsRegistry) ListServices(opts ...registry.ListOption) ([]*registry.Service, error) {
+func (n *NatsRegistry) ListServices(opts ...registry.ListOption) ([]*registry.Service, error) {
 	s, err := n.query("", 0)
 	if err != nil {
 		return nil, err
@@ -375,7 +375,7 @@ func (n *natsRegistry) ListServices(opts ...registry.ListOption) ([]*registry.Se
 	return services, nil
 }
 
-func (n *natsRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
+func (n *NatsRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, error) {
 	conn, err := n.getConn()
 	if err != nil {
 		return nil, err
@@ -394,21 +394,34 @@ func (n *natsRegistry) Watch(opts ...registry.WatchOption) (registry.Watcher, er
 	return &natsWatcher{sub, wo}, nil
 }
 
-func (n *natsRegistry) String() string {
+func (n *NatsRegistry) String() string {
 	return "nats"
 }
 
-func NewRegistry(opts ...registry.Option) registry.Registry {
+func NewRegistry(opts ...registry.Option) *NatsRegistry {
 	options := registry.Options{
 		Timeout: time.Millisecond * 100,
 		Context: context.Background(),
 	}
 
-	n := &natsRegistry{
+	n := &NatsRegistry{
 		opts:      options,
 		services:  make(map[string][]*registry.Service),
 		listeners: make(map[string]chan bool),
 	}
 	configure(n, opts...)
 	return n
+}
+
+func (n *NatsRegistry) AddNodes(old, neu []*registry.Node) []*registry.Node {
+	return addNodes(old, neu)
+}
+
+func (n *NatsRegistry) DelNodes(old, del []*registry.Node) []*registry.Node {
+	return delNodes(old, del)
+}
+
+func (n *NatsRegistry) AddService(neu *registry.Service) error {
+	n.services[neu.Name] = addServices(n.services[neu.Name], []*registry.Service{neu})
+	return nil	
 }
