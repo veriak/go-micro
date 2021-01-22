@@ -413,6 +413,10 @@ func NewRegistry(opts ...registry.Option) *NatsRegistry {
 	return n
 }
 
+func (n *NatsRegistry) SetConn(nc *nats.Conn) {
+	n.conn = nc
+}
+
 func (n *NatsRegistry) AddNodes(old, neu []*registry.Node) []*registry.Node {
 	return addNodes(old, neu)
 }
