@@ -414,6 +414,8 @@ func NewRegistry(opts ...registry.Option) *NatsRegistry {
 }
 
 func (n *NatsRegistry) SetConn(nc *nats.Conn) {
+	n.Lock()
+	defer n.Unlock()
 	n.conn = nc
 }
 
